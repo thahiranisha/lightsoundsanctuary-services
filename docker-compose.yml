@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+
+  # ── DATABASES ──────────────────────────────────────────
+  userdb:
+    image: postgres:15
+    container_name: userdb
+    restart: always
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: useradmin
+      POSTGRES_PASSWORD: userpass
+    ports:
+      - "5433:5432"
+    volumes:
+      - userdb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U useradmin -d userdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mediadb:
+    image: postgres:15
+    container_name: mediadb
+    restart: always
+    environment:
+      POSTGRES_DB: mediadb
+      POSTGRES_USER: mediaadmin
+      POSTGRES_PASSWORD: mediapass
+    ports:
+      - "5434:5432"
+    volumes:
+      - mediadb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mediaadmin -d mediadb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mapdb:
+    image: postgres:15
+    container_name: mapdb
+    restart: always
+    environment:
+      POSTGRES_DB: mapdb
+      POSTGRES_USER: mapadmin
+      POSTGRES_PASSWORD: mappass
+    ports:
+      - "5435:5432"
+    volumes:
+      - mapdb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U mapadmin -d mapdb" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # ── SERVICES ───────────────────────────────────────────
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    restart: always
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://userdb:5432/userdb
+      SPRING_DATASOURCE_USERNAME: useradmin
+      SPRING_DATASOURCE_PASSWORD: userpass
+      JWT_SECRET: lightsoundsanctuary-super-secret-key-must-be-32-chars-min
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      userdb:
+        condition: service_healthy
+
+  media-service:
+    build:
+      context: ./media-service
+      dockerfile: Dockerfile
+    container_name: media-service
+    restart: always
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://mediadb:5432/mediadb
+      SPRING_DATASOURCE_USERNAME: mediaadmin
+      SPRING_DATASOURCE_PASSWORD: mediapass
+    volumes:
+      - media_uploads:/app/uploads
+    depends_on:
+      mediadb:
+        condition: service_healthy
+
+  beacon-service:
+    build:
+      context: ./beacon-service
+      dockerfile: Dockerfile
+    container_name: beacon-service
+    restart: always
+    ports:
+      - "8081:8081"
+    volumes:
+      - beacon_uploads:/app/uploads
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    restart: always
+    ports:
+      - "8084:8084"
+
+  sanctuary-map-service:
+    build:
+      context: ./santuary-map-service
+      dockerfile: Dockerfile
+    container_name: sanctuary-map-service
+    restart: always
+    ports:
+      - "8085:8085"
+
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - user-service
+      - media-service
+      - beacon-service
+      - notification-service
+      - sanctuary-map-service
+
+volumes:
+  userdb_data:
+  mediadb_data:
+  mapdb_data:
+  media_uploads:
+  beacon_uploads:

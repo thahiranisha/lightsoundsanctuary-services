@@ -1,0 +1,31 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: media-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5434/mediadb
+    username: mediaadmin
+    password: mediapass
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+storage:
+  type: local
+  local:
+    upload-dir: uploads
+    public-path: /api/media/uploads
