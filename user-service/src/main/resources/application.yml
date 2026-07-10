@@ -30,4 +30,4 @@ spring:
             scope: email, profile
 
 jwt:
-  secret: lightsoundsanctuary-super-secret-key-must-be-32-chars-min
+  secret: ${JWT_SECRET}

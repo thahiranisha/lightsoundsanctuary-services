@@ -5,6 +5,7 @@ import com.lightsoundsanctuary.user_service.dto.AuthResponse;
 import com.lightsoundsanctuary.user_service.dto.RegisterRequest;
 import com.lightsoundsanctuary.user_service.entity.User;
 import com.lightsoundsanctuary.user_service.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,13 +22,13 @@ public class AuthController {
     private UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
         String message = userService.register(request);
         return ResponseEntity.ok(message);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
         AuthResponse response = userService.login(request);
         return ResponseEntity.ok(response);
     }

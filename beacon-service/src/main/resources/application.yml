@@ -11,6 +11,9 @@ storage:
     upload-dir: uploads
     public-path: /api/beacons/uploads
 
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
+
 logging:
   level:
     com.lightsoundsanctuary.beacon_service: DEBUG

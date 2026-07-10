@@ -29,3 +29,6 @@ storage:
   local:
     upload-dir: uploads
     public-path: /api/media/uploads
+
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}

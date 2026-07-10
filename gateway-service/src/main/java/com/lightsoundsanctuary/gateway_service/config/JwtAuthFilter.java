@@ -22,6 +22,16 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     @Value("${jwt.secret}")
     private String secret;
 
+    // Shared secret proving a request originated from this gateway.
+    // Downstream services reject any request that does not carry it.
+    @Value("${gateway.internal-secret}")
+    private String internalSecret;
+
+    // Trust headers the gateway sets itself. Clients must never be able to
+    // supply these, so we strip them from every inbound request.
+    private static final String USER_HEADER = "X-User-Name";
+    private static final String INTERNAL_AUTH_HEADER = "X-Internal-Auth";
+
     // Public routes that don't need a token
     private static final List<String> PUBLIC_ROUTES = List.of(
             "/api/users/register",
@@ -37,22 +47,33 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         String path = exchange.getRequest().getURI().getPath();
 
-        // Allow public routes through without token
+        // Strip any client-supplied trust headers and stamp the internal-auth
+        // secret. This runs for EVERY request (public or not) so a client can
+        // never spoof its identity or forge the gateway's origin proof.
+        ServerWebExchange stamped = exchange.mutate()
+                .request(r -> r.headers(headers -> {
+                    headers.remove(USER_HEADER);
+                    headers.remove(INTERNAL_AUTH_HEADER);
+                    headers.add(INTERNAL_AUTH_HEADER, internalSecret);
+                }))
+                .build();
+
+        // Allow public routes through without a token
         boolean isPublic = PUBLIC_ROUTES.stream()
                 .anyMatch(path::startsWith);
 
         if (isPublic) {
-            return chain.filter(exchange);
+            return chain.filter(stamped);
         }
 
         // Check Authorization header
-        String authHeader = exchange.getRequest()
+        String authHeader = stamped.getRequest()
                 .getHeaders()
                 .getFirst(HttpHeaders.AUTHORIZATION);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getResponse().setComplete();
+            stamped.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return stamped.getResponse().setComplete();
         }
 
         String token = authHeader.substring(7);
@@ -65,17 +86,16 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     .parseClaimsJws(token)
                     .getBody();
 
-            // Add user info to request headers for downstream services
-            exchange = exchange.mutate()
-                    .request(r -> r.header("X-User-Name",
-                            claims.getSubject()))
+            // Add the trusted user identity for downstream services.
+            ServerWebExchange authed = stamped.mutate()
+                    .request(r -> r.header(USER_HEADER, claims.getSubject()))
                     .build();
 
-            return chain.filter(exchange);
+            return chain.filter(authed);
 
         } catch (Exception e) {
-            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getResponse().setComplete();
+            stamped.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return stamped.getResponse().setComplete();
         }
     }
 

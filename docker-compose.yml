@@ -69,7 +69,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://userdb:5432/userdb
       SPRING_DATASOURCE_USERNAME: useradmin
       SPRING_DATASOURCE_PASSWORD: userpass
-      JWT_SECRET: lightsoundsanctuary-super-secret-key-must-be-32-chars-min
+      JWT_SECRET: ${JWT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     depends_on:
@@ -82,12 +82,14 @@ services:
       dockerfile: Dockerfile
     container_name: media-service
     restart: always
-    ports:
-      - "8083:8083"
+    # Not published to the host: reachable only via the gateway on the compose network.
+    expose:
+      - "8083"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://mediadb:5432/mediadb
       SPRING_DATASOURCE_USERNAME: mediaadmin
       SPRING_DATASOURCE_PASSWORD: mediapass
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET}
     volumes:
       - media_uploads:/app/uploads
     depends_on:
@@ -100,8 +102,11 @@ services:
       dockerfile: Dockerfile
     container_name: beacon-service
     restart: always
-    ports:
-      - "8081:8081"
+    # Not published to the host: reachable only via the gateway on the compose network.
+    expose:
+      - "8081"
+    environment:
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET}
     volumes:
       - beacon_uploads:/app/uploads
 
@@ -111,8 +116,11 @@ services:
       dockerfile: Dockerfile
     container_name: notification-service
     restart: always
-    ports:
-      - "8084:8084"
+    # Not published to the host: reachable only via the gateway on the compose network.
+    expose:
+      - "8084"
+    environment:
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET}
 
   sanctuary-map-service:
     build:
@@ -120,8 +128,11 @@ services:
       dockerfile: Dockerfile
     container_name: sanctuary-map-service
     restart: always
-    ports:
-      - "8085:8085"
+    # Not published to the host: reachable only via the gateway on the compose network.
+    expose:
+      - "8085"
+    environment:
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET}
 
   gateway-service:
     build:
@@ -131,6 +142,14 @@ services:
     restart: always
     ports:
       - "8080:8080"
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET}
+      BEACON_SERVICE_URI: http://beacon-service:8081
+      USER_SERVICE_URI: http://user-service:8082
+      MEDIA_SERVICE_URI: http://media-service:8083
+      NOTIFICATION_SERVICE_URI: http://notification-service:8084
+      SANCTUARY_MAP_SERVICE_URI: http://sanctuary-map-service:8085
     depends_on:
       - user-service
       - media-service
